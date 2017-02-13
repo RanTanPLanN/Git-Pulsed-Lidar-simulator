@@ -42,12 +42,12 @@ LengthDiscr = linspace(0,probeLength,Points);
 % Number of range gates that fit before the measurement point
 CloseRG = floor((RadialDist2MeasurePoint - 0.5*probeLength - FirstGap)/...
     (RangeGateGap + probeLength));
-if (CloseRG < 0) CloseRG = 0; end;
+
+if (CloseRG < 0), CloseRG = 0; end;
 
 % radial distance vector
 r = RadialDist2MeasurePoint - probeLength/2 + LengthDiscr;
 
-% previousProbe = probe.r-probe.RangeGateGap-probe.Length;
 previousProbe = r;
 for ii = 1:CloseRG
     previousProbe = previousProbe - RangeGateGap - probeLength;
@@ -60,7 +60,15 @@ for ii = 1:NRangeGates - CloseRG - 1
     nextRG = r(end) + RangeGateGap + LengthDiscr;
     r = [r, nextRG];
 end
+% At this point, all the probe points of a complete scan of the LIDAR have
+% been calculated in spherical coordinates.
 
+% Convert the previously calculate probe points into cartesian coordinates.
+% Cartesian coordinates are easier to manipulate (the LES grid is also
+% going to be in cartesian) and are also need in order to interpolate the
+% velocity on the grid points.
+
+% preallocate scan structure
 scan(length(phiVector)).CartX = [];
 for ii = 1:length(phiVector)
     [scan(ii).CartX,scan(ii).CartY,scan(ii).CartZ] = ...

@@ -10,9 +10,12 @@
 % scan the exact location of interest, the probe length, and the range
 % spacing (gap between the range gates).
 %
-% The output(s) should be the LOS velocity at that specific point (at least
-% for the moment).
+% The output(s) should be the reconstructed velocity at that specific point
+%(at least for the moment).
 %
+% NOTE: The scripts assumes ground based LIDARs therefore all the
+% geometrical calculations are performed based on that.
+% 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %
 %
@@ -59,6 +62,9 @@ probe(1).RadialDist2MeasurePoint = 57;
 
 % Inclination angle theta. The value must be in DEGREES. This angle also
 % corresponds to the point we want to measure.
+% WARNING: If 2 or less LIDARs are used for the measurement, the
+% inclination angle should be as small as possible to ensure small
+% contribution of the w-component in the reconstructed velocity.
 thetaLidar = 30;
 
 % convert thetaLidar to radians
@@ -97,9 +103,14 @@ nLidars = 2;
 if nLidars > 1
     
     % position of second LIDAR in cartesian coordinates
-    Lidar(2).x = Lidar(1).x + 0.2*xDimension/2;
-    Lidar(2).y = yDimension;
-    Lidar(2).z = 0;
+    Lidar(2).x = Lidar(1).x + xDimension/2;
+    Lidar(2).y = 100;
+    Lidar(2).z = 0; 
+
+    % FirstGap, PointsPerLength and NRgates will remain the same.
+    probe(2).FirstGap = probe(1).FirstGap;
+    probe(2).PointsPerLength = probe(1).PointsPerLength;
+    probe(2).NRangeGates = probe(1).NRangeGates;
 
     % change the probe length if needed 
     probe(2).Length = 15;
@@ -107,6 +118,11 @@ if nLidars > 1
     % RangeGateGap is again twice the Length
     probe(2).RangeGateGap = 2*probe(2).Length;
 end
+
+% add 3rd Lidar here
+% if nLidars > 2
+% end 
+    
 
 % For now the LIDARs are going to be similar (FirstGap, probeLength,
 % phiLidar, weightingFunction etc). They will have different NRangeGates,
@@ -118,7 +134,7 @@ end
 %%%%%%%%%%%%%%%% DONT CHANGE ANYTHING BELOW THIS LINE %%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 if (probe(1).RadialDist2MeasurePoint <= probe(1).FirstGap + probe(1).Length/2)
-    fprintf('Measurement point to close to LIDAR location.\nExiting.\n')
+    fprintf('Measurement point to close to LIDAR location.\nExiting...\n')
     return
 end
 
@@ -195,7 +211,8 @@ disp('----------------------------------------')
 
 % Create dummy laminar velocity field
 % uComp = meanWindSpeed*ones(size(Domain.x)) - 1.5*meanWindSpeed*rand(size(Domain.x));;
-uComp = meanWindSpeed*rand(size(Domain.x));
+% uComp = meanWindSpeed*rand(size(Domain.x));
+uComp = meanWindSpeed*ones(size(Domain.x));
 % uComp(:,1:length(xVector)/2,:) = 1;
 vComp = zeros(size(Domain.x));
 wComp = zeros(size(Domain.x));
@@ -204,7 +221,7 @@ wComp = zeros(size(Domain.x));
 % add 90 degrees because of the way MATLAB converts spherical to cartesian 
 % coordinates. For more info see:
 % https://www.mathworks.com/help/matlab/ref/sph2cart.html .
-probe(1).phiVector = [-phiLidar:phiStep:phiLidar];
+probe(1).phiVector = (-phiLidar:phiStep:phiLidar) + phiMeasurePoint;
 probe(1).phiVector = deg2rad(-probe(1).phiVector + 90);
 
 %% Probe 
@@ -215,51 +232,9 @@ probe(1).phiVector = deg2rad(-probe(1).phiVector + 90);
 probe(1).RangeGateGap = 2*probe(1).Length;
 
 [Lidar(1).scan,probe(1).Points,probe(1).LengthDiscr,probe(1).r] = ...
-    calculateRangeGates(probe(1).RadialDist2MeasurePoint,probe(1).Length, probe(1).PointsPerLength,...
-    probe(1).RangeGateGap,probe(1).FirstGap,probe(1).NRangeGates,probe(1).phiVector,thetaLidar(1));
-
-% % Points that form the probe
-% probe(1).Points = probe(1).Length*probe(1).PointsPerLength;
-% 
-% % probePoints should be an odd number in order to fit a proper triangular
-% % weighting function
-% probe(1).Points = (~mod(probe(1).Points,2))*(probe(1).Points + 1) +...
-%     mod(probe(1).Points,2)*probe(1).Points;
-% 
-% % Discretize the probeLength
-% probe(1).LengthDiscr = linspace(0,probe(1).Length,probe(1).Points);
-% 
-% % Number of range gates that fit before the measurement point
-% probe(1).CloseRG = floor((probe(1).RadialDist2MeasurePoint - ...
-%     0.5*probe(1).Length - probe(1).FirstGap)/...
-%     (probe(1).RangeGateGap + probe(1).Length));
-% if (probe(1).CloseRG < 0) probe(1).CloseRG = 0; end;
-% 
-% % radial distance vector
-% probe(1).r = probe(1).RadialDist2MeasurePoint - probe(1).Length/2 + ...
-%     probe(1).LengthDiscr;
-
-% % previousProbe = probe.r-probe.RangeGateGap-probe.Length;
-% previousProbe = probe(1).r;
-% for ii = 1:probe(1).CloseRG
-%     previousProbe = previousProbe - probe(1).RangeGateGap - probe(1).Length;
-%     probe(1).r = [previousProbe, probe(1).r];
-% end
-% 
-% % Calculate the radial distances of all the points of all the Range Gates
-% for ii = 1:probe(1).NRangeGates - probe(1).CloseRG - 1
-%     % calculate next Range Gate
-%     nextRG = probe(1).r(end) + probe(1).RangeGateGap + probe(1).LengthDiscr;
-%     probe(1).r = [probe(1).r, nextRG];
-% end
-
-% Find the cartesian coordinates of each point of the probe. For now we do
-% it only for fixed theta
-% scan(length(phiVector)).CartX = [];
-% for ii = 1:length(phiVector)
-%     [scan(ii).CartX,scan(ii).CartY,scan(ii).CartZ] = ...
-%     sph2cart(phiVector(ii),thetaLidar,probe(1).r);
-% end
+    calculateRangeGates(probe(1).RadialDist2MeasurePoint,probe(1).Length...
+    ,probe(1).PointsPerLength,probe(1).RangeGateGap,probe(1).FirstGap...
+    ,probe(1).NRangeGates,probe(1).phiVector,thetaLidar(1));
 
 %% Weighting function (this part might need to be a separate MATLAB function)
 
@@ -274,7 +249,8 @@ plot([probe(1).LengthDiscr((end+1)/2) probe(1).LengthDiscr((end+1)/2)]...
 hold off
 
 %% Draw 3D - Careful
-% Generates one figure per azimuthial angle phi!!!
+% Generates one figure per azimuthial angle phi -so in total the number of 
+% figures will be length(phiVector)!!!
 % Be careful if the phiLidar vector has very small step
 
 % for ii = 1:length(phiVector)
@@ -313,23 +289,23 @@ end
 hold off
 
 %% Not needed - just a visual check
-
+ 
 [measurePoint.x,measurePoint.y,measurePoint.z] = sph2cart(probe(1).phiVector((length(probe(1).phiVector)+1)/2),...
-    thetaLidar,probe(1).RadialDist2MeasurePoint);
-figure
-plot3(Lidar(1).scan((length(probe(1).phiVector)+1)/2).CartX,...
-    Lidar(1).scan((length(probe(1).phiVector)+1)/2).CartY,...
-    Lidar(1).scan((length(probe(1).phiVector)+1)/2).CartZ,'.');
-hold on
-% plot3(scan((length(phiVector)+1)/2).CartX(end), scan(1).CartY(end), scan(1).CartZ(end),'*');
-plot3(measurePoint.x,measurePoint.y,measurePoint.z,'*')
-hold off
-grid on
-grid minor
-xlabel('x axis')
-ylabel('y axis')
-zlabel('z axis')
-axis([-50 50 30 105 18 70 ])
+    thetaLidar(1),probe(1).RadialDist2MeasurePoint);
+% figure
+% plot3(Lidar(1).scan((length(probe(1).phiVector)+1)/2).CartX,...
+%     Lidar(1).scan((length(probe(1).phiVector)+1)/2).CartY,...
+%     Lidar(1).scan((length(probe(1).phiVector)+1)/2).CartZ,'.');
+% hold on
+% % plot3(scan((length(phiVector)+1)/2).CartX(end), scan(1).CartY(end), scan(1).CartZ(end),'*');
+% plot3(measurePoint.x,measurePoint.y,measurePoint.z,'*')
+% hold off
+% grid on
+% grid minor
+% xlabel('x axis')
+% ylabel('y axis')
+% zlabel('z axis')
+% axis([-50 50 30 105 18 70 ])
 
 %% Calculate all distances between domain points and probe points
 
@@ -374,47 +350,69 @@ CubeZ = [Zlow Zhigh];
 [cube.x,cube.y,cube.z] = meshgrid(CubeX, CubeY, CubeZ);
 
 % Plot for testing
-figure
-plot3(Lidar(1).scan(1).CartX(end), Lidar(1).scan(1).CartY(end), Lidar(1).scan(1).CartZ(end),'*');
-hold on
-% draw bottom xy-plane
-plot3([Xlow Xlow],[Ylow Yhigh],[Zlow Zlow],'r')
-plot3([Xlow Xhigh],[Yhigh Yhigh],[Zlow Zlow],'r')
-plot3([Xhigh Xhigh],[Yhigh Ylow],[Zlow Zlow],'r')
-plot3([Xhigh Xlow],[Ylow Ylow],[Zlow Zlow],'r')
-
-% draw upper xy-plane
-plot3([Xlow Xlow],[Ylow Yhigh],[Zhigh Zhigh],'r')
-plot3([Xlow Xhigh],[Yhigh Yhigh],[Zhigh Zhigh],'r')
-plot3([Xhigh Xhigh],[Yhigh Ylow],[Zhigh Zhigh],'r')
-plot3([Xhigh Xlow],[Ylow Ylow],[Zhigh Zhigh],'r')
-
-% connect the xy-planes
-plot3([Xlow Xlow],[Ylow Ylow],[Zlow Zhigh],'r')
-plot3([Xhigh Xhigh],[Ylow Ylow],[Zlow Zhigh],'r')
-plot3([Xlow Xlow],[Yhigh Yhigh],[Zlow Zhigh],'r')
-plot3([Xhigh Xhigh],[Yhigh Yhigh],[Zlow Zhigh],'r')
-
-hold off
-xlabel('x axis')
-ylabel('y axis')
-zlabel('z axis')
-grid on
-grid minor
+% figure
+% plot3(Lidar(1).scan(1).CartX(end), Lidar(1).scan(1).CartY(end), Lidar(1).scan(1).CartZ(end),'*');
+% hold on
+% % draw bottom xy-plane
+% plot3([Xlow Xlow],[Ylow Yhigh],[Zlow Zlow],'r')
+% plot3([Xlow Xhigh],[Yhigh Yhigh],[Zlow Zlow],'r')
+% plot3([Xhigh Xhigh],[Yhigh Ylow],[Zlow Zlow],'r')
+% plot3([Xhigh Xlow],[Ylow Ylow],[Zlow Zlow],'r')
+% 
+% % draw upper xy-plane
+% plot3([Xlow Xlow],[Ylow Yhigh],[Zhigh Zhigh],'r')
+% plot3([Xlow Xhigh],[Yhigh Yhigh],[Zhigh Zhigh],'r')
+% plot3([Xhigh Xhigh],[Yhigh Ylow],[Zhigh Zhigh],'r')
+% plot3([Xhigh Xlow],[Ylow Ylow],[Zhigh Zhigh],'r')
+% 
+% % connect the xy-planes
+% plot3([Xlow Xlow],[Ylow Ylow],[Zlow Zhigh],'r')
+% plot3([Xhigh Xhigh],[Ylow Ylow],[Zlow Zhigh],'r')
+% plot3([Xlow Xlow],[Yhigh Yhigh],[Zlow Zhigh],'r')
+% plot3([Xhigh Xhigh],[Yhigh Yhigh],[Zlow Zhigh],'r')
+% 
+% hold off
+% xlabel('x axis')
+% ylabel('y axis')
+% zlabel('z axis')
+% grid on
+% grid minor
 
 %% Interpolate the grid velocity values to obtain the velocity at the probe points
 
-% LOS velocity
-LOSvel = nan(length(probe(1).r),length(probe(1).phiVector));
+% interpolated velocity components and store them in interpVel structure.
+% First pre-allocate the structure.
+interpVel(nLidars).u = nan(length(probe(1).r),length(probe(1).phiVector));
 for tt = 1:length(probe(1).phiVector)
-    LOSvel(:,tt) = interp3(xVector,yVector,zVector,uComp, Lidar(1).scan(tt).CartX,...
-        Lidar(1).scan(tt).CartY,Lidar(1).scan(tt).CartZ);
+    interpVel(1).u(:,tt) = interp3(xVector,yVector,zVector,uComp...
+        ,Lidar(1).scan(tt).CartX,Lidar(1).scan(tt).CartY...
+        ,Lidar(1).scan(tt).CartZ);
+    interpVel(1).v(:,tt) = interp3(xVector,yVector,zVector,vComp...
+        ,Lidar(1).scan(tt).CartX,Lidar(1).scan(tt).CartY...
+        ,Lidar(1).scan(tt).CartZ);
+    interpVel(1).w(:,tt) = interp3(xVector,yVector,zVector,wComp...
+        ,Lidar(1).scan(tt).CartX,Lidar(1).scan(tt).CartY...
+        ,Lidar(1).scan(tt).CartZ);
 end
 
+% calculate the LOS velocity of the LIDAR for each and every point of the
+% scan, i.e. 153x11 points in total
+LOSvel = nan(length(probe(1).r),length(probe(1).phiVector));
+for tt = 1:length(probe(1).phiVector)
+    LOSvel(:,tt) = [sin(probe(1).phiVector(tt)-pi/2)*cos(thetaLidar)...
+        ,cos(probe(1).phiVector(tt)-pi/2)*cos(thetaLidar),sin(thetaLidar)]...
+        *[interpVel(1).u(:,tt)'; interpVel(1).v(:,tt)';interpVel(1).w(:,tt)'];
+end
+        
+        
 %% Implement weighting function
 
 % preallocate matrix with LIDAR measurements
 LidarMeas = nan(probe(1).NRangeGates,length(probe(1).phiVector));
+
+% apply the ranging function to the points of each range gate. For each
+% range gate one value is returned and that corresponds to the final
+% measurement that the LIDAR returns. 
 for ii = 1:probe(1).NRangeGates
     for tt = 1:length(probe(1).phiVector)
         LidarMeas(ii,tt) = WeightFunc*...
@@ -423,7 +421,16 @@ for ii = 1:probe(1).NRangeGates
 end
    
 %% Find the points that the measurements correspond to 
+
 measurPoints(length(probe(1).phiVector)).x = [];
+% We already have the cartesian coordinates in Lidar.scan but it is not 
+% easy to retrieve the exact points. Here the coordinates are separated 
+% into points.
+%
+% NOTE: maybe in the future it will be easier if instead of a structure we 
+% have a matrix with dimensions (length(probe(1).phiVector),3) where each 
+% column will correspond to one coordinate x, y, z.
+
 for ii = 1:probe(1).NRangeGates
     for tt = 1:length(probe(1).phiVector)
         measurPoints(tt).x = Lidar(1).scan(tt).CartX((probe(1).Points+1)/2:probe(1).Points:length(probe(1).r));
