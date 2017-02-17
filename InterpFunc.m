@@ -1,4 +1,4 @@
-function [interpVel] = InterpFunc(xVector,yVector,zVector,uComp,vComp,wComp,scan,r,phiVector)
+function [interpVel] = InterpFunc(xVector,yVector,zVector,uComp,vComp,wComp,scan,phiVector)
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %
@@ -23,8 +23,7 @@ function [interpVel] = InterpFunc(xVector,yVector,zVector,uComp,vComp,wComp,scan
 % grid point.
 % 7. scan: structure with all the cartesian coordinates of all the scanning
 % points of the LIDAR
-% 8. r: vector with all the radial distances the LIDAR is scanning
-% 9. phiVector: vector with the azimuthal angles the LIDAR is scanning. The
+% 8. phiVector: vector with the azimuthal angles the LIDAR is scanning. The
 % angles are measured in MATLAB convention.
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -37,14 +36,23 @@ function [interpVel] = InterpFunc(xVector,yVector,zVector,uComp,vComp,wComp,scan
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %
 % Created: February 9, 2017
-% Last edited: February 14, 2017
+% Last edited: February 16, 2017
 % Author: Nikolaos Frouzakis
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % pre-allocate structure
-interpVel(1).u = nan(length(r),length(phiVector));
+interpVel(1).u = nan(length(scan(1).CartX),length(phiVector));
 
 for tt = 1:length(phiVector)
+    
+    % each column of the u,v,w matrices corresponds to a different phi
+    % angle. 
+    % In PPI mode the columns will be equal to the azimuthal
+    % resolution of the LIDARs (e.g. if phiVector = [-25:5:25] then there
+    % will be 11 columns.
+    % In Staring mode, there is one phi per point,
+    % therefore the columns will be equal to the number of points.
+    
     interpVel(1).u(:,tt) = interp3(xVector,yVector,zVector,uComp...
         ,scan(tt).CartX,scan(tt).CartY,scan(tt).CartZ);
     interpVel(1).v(:,tt) = interp3(xVector,yVector,zVector,vComp...

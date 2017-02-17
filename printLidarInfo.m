@@ -57,7 +57,7 @@ if (nLidars > 1)
     fprintf('Lidar Position:\n\n')
     fprintf('x = %f\n',Lidar(2).x)
     fprintf('y = %f\n',Lidar(2).y)
-    fprintf('z = %f\n',Lidar(2).z)
+    fprintf('z = %f\n\n',Lidar(2).z)
     fprintf('Closest possible range: %.1f metres\n',probe(2).FirstGap);
     fprintf('Probe length: %.1f metres\n',probe(2).Length)
     fprintf('Points per unit length of the probe: %d\n',probe(2).PointsPerLength)

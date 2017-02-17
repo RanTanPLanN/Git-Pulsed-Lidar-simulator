@@ -45,8 +45,8 @@ function [scan,Points,LengthDiscr,r] = calculateRangeGates(RadialDist2MeasurePoi
 % Number points that form the probe
 Points = probeLength*PointsPerLength;
 
-% probePoints should be an odd number in order to fit a proper triangular
-% weighting function
+% probePoints should be an odd number in order to fit a proper weighting
+% function
 Points = (~mod(Points,2))*(Points + 1) +...
     mod(Points,2)*Points;
 
@@ -62,7 +62,8 @@ r = RadialDist2MeasurePoint - probeLength/2 + LengthDiscr;
 % per point. All that is needed is a RG that will include the measurement
 % point.
 if (operationMode == 'p')
-    % Number of range gates that fit before the measurement point
+    
+    % Number of range gates that fit before the measurement point.
     CloseRG = floor((RadialDist2MeasurePoint - 0.5*probeLength - FirstGap)/...
         (RangeGateGap + probeLength));
 

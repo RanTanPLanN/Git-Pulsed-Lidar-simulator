@@ -33,7 +33,7 @@ clc
 
 % operational mode: 
 % Select 'p' for PPI or 's' for staring mode.
-operationMode = 'p';
+operationMode = 's';
 
 %% Selection of weighting function shape
 
@@ -96,13 +96,13 @@ probe(1).Length = 10;
 % points per unit length for the probe
 probe(1).PointsPerLength = 5;
 
-%% Information about second LIDAR 
+%% Information about additional LIDARs 
 
 if nLidars > 1
     
     % position of second LIDAR in cartesian coordinates
-    Lidar(2).x = Lidar(1).x - xDimension/2;
-    Lidar(2).y = 0;
+    Lidar(2).x = Lidar(1).x + xDimension/2;
+    Lidar(2).y = 100;
     Lidar(2).z = 0; 
 
     % FirstGap, PointsPerLength and NRgates will remain the same.
@@ -112,10 +112,29 @@ if nLidars > 1
     % change the probe length if needed 
     probe(2).Length = 15;
     
-    % RangeGateGap is again twice the Length
-    probe(2).RangeGateGap = 2*probe(2).Length;
+%     % RangeGateGap is again twice the Length
+%     probe(2).RangeGateGap = 2*probe(2).Length;
+    
+    % check if there is a 3rd LIDAR and assign the ncessary values
+    if nLidars == 3
+        % position of 3rd LIDAR in cartesian coordinates
+        Lidar(3).x = Lidar(1).x - xDimension/2;
+        Lidar(3).y = 180;
+        Lidar(3).z = 0; 
+
+        % FirstGap, PointsPerLength and NRgates will remain the same.
+        probe(3).FirstGap = probe(1).FirstGap;
+        probe(3).PointsPerLength = probe(1).PointsPerLength;
+
+        % change the probe length if needed 
+        probe(3).Length = 12;
+
+%         % RangeGateGap is again twice the Length
+%         probe(3).RangeGateGap = 2*probe(3).Length;  
+    end
 end
 
+%% 
 if operationMode == 'p';
     
     % Distance between range gates (should be at least equal to the
@@ -132,6 +151,7 @@ if operationMode == 'p';
     % WARNING: If 2 or less LIDARs are used for the measurement, the
     % inclination angle should be as small as possible to ensure small
     % contribution of the w-component in the reconstructed velocity.
+    thetaLidar = nan(1,nLidars);
     thetaLidar(1) = 30;
 
     % convert thetaLidar to radians
@@ -146,11 +166,24 @@ if operationMode == 'p';
     phiLidar = 25;
     phiStep = 5;
 
-    % number of range gates we want to measure
+    % number of range gates we want to measure.
+    % NOTE: The code will return 3 range gates per Lidar UNLESS the
+    % measurement point is too far from the Lidar location. If this is true
+    % and more range gates fit before the one that actually contain the
+    % focal point, then more range gates will be returned. If that is the
+    % case then the focal point is always included in the last range gate.
     probe(1).NRangeGates = 3;
     
     % include the number of range gates in the probe(2) structure as well.
-    if (nLidars > 1), probe(2).NRangeGates = probe(1).NRangeGates; end;
+    if (nLidars > 1)
+        probe(nLidars).NRangeGates = probe(1).NRangeGates;
+        probe(nLidars-1).NRangeGates = probe(1).NRangeGates;
+        
+        % RangeGateGap is again twice the Length
+        probe(nLidars).RangeGateGap = 2*probe(nLidars).Length;
+        probe(nLidars-1).RangeGateGap = 2*probe(nLidars-1).Length;
+
+    end;
     
     % call 'PPImode' script
     PPImode
@@ -158,7 +191,7 @@ else
     % matrix with the input measurement points. The matrix is [n x 3]. 
     % Each row represents one point and each column represents the x,y,z 
     % coordinate of that point.
-    CartInputPoints = [-30 -10 -90 30;200 80 0 80;70 70 10 70]';
+    CartInputPoints = [-30 -10 -80 30;200 80 20 80;70 70 10 70]';
     
     % call 'StaringMode' script
     StaringMode
