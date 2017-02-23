@@ -40,12 +40,12 @@ operationMode = 's';
 % choose type of weighting function:
 % 't' for triangular-shaped function
 % 'g' for gaussian-shaped function
-weightingFuncType = 'g';
+weightingFuncType = 't';
 
 %% Number of LIDARs
 
 % choose number of LIDARs that participate in the campaign (1,2 or 3)
-nLidars = 2;
+nLidars = 3;
 
 %% Dummies - These variable are just for testing
 
@@ -56,7 +56,7 @@ yDimension = 300;
 zDimension = 140;
 
 % Each dimension consists of 2 points per unit length
-pointsPerDimensionLength = 2;
+pointsPerDimensionLength = 1;
 xVector = linspace(-xDimension/2,xDimension/2,xDimension*pointsPerDimensionLength);
 yVector = linspace(0,yDimension,yDimension*pointsPerDimensionLength);
 zVector = linspace(0,zDimension,zDimension*pointsPerDimensionLength);
@@ -67,14 +67,37 @@ zVector = linspace(0,zDimension,zDimension*pointsPerDimensionLength);
 % mean wind speed (m/s)
 meanWindSpeed = 8;
 
+
+% create wind field with linear shear (in the x direction)
+maxWindSpeed = 25;
+
+% windmatrix = linspace(0,maxWindSpeed,length(xVector));
+% windmatrix2 = repmat(windmatrix,[length(yVector) 1]);
+% windmatrix3 = repmat(windmatrix2,[1 1 length(zVector)]);
+% %
+
+% create 3D grid where both u- and y- component increase with x and y
+% respectively.
+[uComp,vComp,wComp] = meshgrid(ones(length(xVector),1),...
+    meanWindSpeed*ones(length(yVector),1),linspace(0,maxWindSpeed,length(zVector)));
+
+% umag = -5;
+% vmag = 10;
+% wmag = 0;
+
 % Create dummy laminar velocity field
 % uComp = meanWindSpeed*ones(size(Domain.x)) - 1.5*meanWindSpeed*rand(size(Domain.x));;
 % uComp = meanWindSpeed*rand(size(Domain.x));
-uComp = meanWindSpeed*ones(size(Domain.x));
 % uComp(:,1:length(xVector)/2,:) = 1;
-vComp = zeros(size(Domain.x));
-wComp = zeros(size(Domain.x));
+% uComp = umag*ones(size(Domain.x));
+% vComp = vmag*ones(size(Domain.x));
+% wComp = wmag*ones(size(Domain.x));
 
+% the following plot causes the computer to run out of memory.
+
+% % plot wind field
+% figure
+% scatter3(Domain.x(:),Domain.y(:),Domain.z(:),vComp(:))
 
 %% Position of 1st LIDAR
 
@@ -98,11 +121,11 @@ probe(1).PointsPerLength = 5;
 
 %% Information about additional LIDARs 
 
-if nLidars > 1
+if (nLidars > 1)
     
     % position of second LIDAR in cartesian coordinates
     Lidar(2).x = Lidar(1).x + xDimension/2;
-    Lidar(2).y = 100;
+    Lidar(2).y = 155;
     Lidar(2).z = 0; 
 
     % FirstGap, PointsPerLength and NRgates will remain the same.
@@ -135,7 +158,7 @@ if nLidars > 1
 end
 
 %% 
-if operationMode == 'p';
+if (operationMode == 'p')
     
     % Distance between range gates (should be at least equal to the
     % probeLength). Now I put it twice the probeLength. It is subject to change
@@ -191,15 +214,17 @@ else
     % matrix with the input measurement points. The matrix is [n x 3]. 
     % Each row represents one point and each column represents the x,y,z 
     % coordinate of that point.
-    CartInputPoints = [-30 -10 -80 30;200 80 20 80;70 70 10 70]';
     
+%     CartInputPoints = [60 160 0; 60 40 0; -30 200 0; -40 50 0; 30 130 0];
+%     CartInputPoints = [-80 175 0; -50 145 0; 0 95 0; 50 45 0; 80 15 0];
+%     CartInputPoints = [-20 20; 60 40;-20.3370303202505,115.337030320250;-17.8781412223807,112.878141222381;-15.5346290269695,110.534629026969;-13.2972275291713,108.297227529171;-11.1576149354150,106.157614935415;-9.10829564822498,104.108295648225;-7.14249934299797,102.142499342998;-5.25409445438666,100.254094454387;-3.43751372617243,98.4375137261724;-1.68768990505206,96.6876899050521;-3.26228962580660e-43,95;1.62978319666399,93.3702168033360;3.20553340846107,91.7944665915389;4.73080789585260,90.2691921041474;6.20887995372924,88.7911200462708;7.64276751907920,87.3572324809208;9.03525842323716,85.9647415767628;10.3889327409309,84.6110672590691;11.7061826201173,83.2938173798827;12.9892299197454,82.0107700802546;14.2401419350388,80.7598580649612];
+%     CartInputPoints = [CartInputPoints zeros(size(CartInputPoints,1),1)];
+    CartInputPoints = [80 150 130; -80 150 30; -80 70 100; 80 70 10];
+
     % call 'StaringMode' script
     StaringMode
 end 
-
-% add 3rd Lidar here
-% if nLidars > 2
-% end 
+ 
     
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%% End of User Input %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

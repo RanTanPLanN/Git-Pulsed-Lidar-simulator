@@ -69,12 +69,11 @@ for ii = 1:length(phi)
         phi(ii) = 90 + phi(ii);
     elseif (LidarY >= measurePointY(ii) && LidarX < L1X)
         phi(ii) = 270 + phi(ii);
-    else
-% This 'else' might change in case we want to give a point in cartesian
-% coordinates in the PPI mode because then this function will be also
-% called at the very beginning in order to calculate the phi, theta and r
-% of LIDAR 1. The following 'elseif' statement should be used instead:
-%     elseif (LidarY < measurePointY(ii) && LidarX < L1X)
+    % In the ast check an 'elseif' is used instead of 'else' to include the 
+    % case when we give a point in cartesian coordinates in the PPI mode
+    % because then this function will be also called at the very beginning 
+    % in order to calculate the phi, theta and r of LIDAR 1.
+    elseif (LidarY < measurePointY(ii) && LidarX < L1X)
         phi(ii) = 90 - phi(ii);
     end
 end

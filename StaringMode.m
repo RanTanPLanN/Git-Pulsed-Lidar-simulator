@@ -9,7 +9,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %
 % Created: February 13, 2017
-% Last edited: February 16, 2017
+% Last edited: February 23, 2017
 % Author: Nikolaos Frouzakis
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -29,10 +29,10 @@ for nn = 1:nLidars
 
         Lidar(nn).phi = deg2rad(Lidar(nn).phi);
     end
-    % In Staring mode the range gates are named 'beams' instead of 'scans' that
-    % was the name in the PPI mode just to avoid confusion. Here, the LIDAR is
-    % NOT scanning, rather sending a single beam (range gate) at focus point
-    % in order to obtain a measurement at that point.
+    % In Staring mode the Range Gates are named 'beams' instead of 'scans'
+    % that was the name in the PPI mode just to avoid confusion. Here, the
+    % LIDAR is NOT scanning, rather sending a single beam (range gate) at 
+    % the focal points to obtain a measurement at those points.
 
     % probe(nLidars).Points = [];
     % probe(nLidars).LengthDiscr = [];
@@ -43,51 +43,10 @@ for nn = 1:nLidars
             ,probe(nn).PointsPerLength,NaN,probe(nn).FirstGap,NaN...
             ,Lidar(nn).phi(ii),Lidar(nn).theta(ii),operationMode);
     end
-
-
-
-
-% % calculate the distance in the xy-plane between the LIDAR and the
-% % measurement points. The resulting vector (hypotenuse) will have length
-% % equal to the number of measurement points.
-% hypotenuse = sqrt((Lidar(2).y-CartInputPoints(:,2)).^2 ...
-%     + (Lidar(2).x-CartInputPoints(:,1)).^2);
-% 
-% % calculate the necessary elevation angle theta to point at each
-% % measurement point
-% Lidar(2).theta = atan(CartInputPoints(:,3)./hypotenuse);
-% 
-% % calculate the radial distances between the LIDAR and the points
-% Lidar(2).r = hypotenuse./cos(Lidar(2).theta);
-% 
-% % MATLAB defines the azimuthal angle as the angle between the x-axis and
-% % the vector, measuring from the x-axis to the vector. Therefore, depending
-% % on the position of the LIDAR, an azimuthal offset must be added to the
-% % the phiVector in order to convert the coordinates from spherical to
-% % cartesian correctly.
-% Lidar(2).phi = atand(abs((Lidar(2).x-CartInputPoints(:,1))./(Lidar(2).y-CartInputPoints(:,2))));
-% 
-% % The offset also depends on the position of the LIDAR relatively to the
-% % measuring point:
-% for ii = 1:length(Lidar(2).phi)
-%     if (Lidar(2).y >= CartInputPoints(ii,2) && Lidar(2).x > Lidar(1).x)
-%         Lidar(2).phi(ii) = 270 - Lidar(2).phi(ii);
-%     elseif (Lidar(2).y < CartInputPoints(ii,2) && Lidar(2).x > Lidar(1).x)
-%         Lidar(2).phi(ii) = 90 + Lidar(2).phi(ii);
-%     elseif (Lidar(2).y >= CartInputPoints(ii,2) && Lidar(2).x < Lidar(1).x)
-%         Lidar(2).phi(ii) = 270 + Lidar(2).phi(ii);
-%     else
-%         Lidar(2).phi(ii) = 90 - Lidar(2).phi(ii);
-%     end
-% end
-% 
-
-% for ii = 1:size(CartInputPoints,1)
-%     [Lidar(2).beam(ii),probe(2).Points,probe(2).LengthDiscr,probe(2).r(ii,:)]...
-%         = calculateRangeGates(Lidar(2).r(ii),probe(2).Length...
-%         ,probe(2).PointsPerLength,NaN,probe(2).FirstGap,NaN...
-%         ,Lidar(2).phi(ii),Lidar(2).theta(ii),operationMode);
-% end
+    
+    % since the cartesian coordinates of Lidars 2 and 3 are calculated
+    % w.r.t point (0,0,0), the beam coordinates have to be shifted
+    % according to the coordinates of the respective Lidar.
     if (nn > 1)
         for ii = 1:size(CartInputPoints,1);
             Lidar(nn).beam(ii).CartX = Lidar(nn).beam(ii).CartX + Lidar(nn).x;
@@ -113,12 +72,14 @@ for nn = 1:nLidars
     % of all beams, i.e. 51x4 points in total
     Lidar(nn).LOSvel = nan(probe(nn).Points,length(Lidar(nn).phi));
     for tt = 1:length(Lidar(nn).phi)
-        Lidar(nn).LOSvel(:,tt) = [sin(Lidar(nn).phi(tt)-pi/2)*cos(Lidar(nn).theta(tt))...
-            ,cos(Lidar(nn).phi(tt)-pi/2)*cos(Lidar(nn).theta(tt)),...
-            sin(Lidar(nn).theta(tt))]*[interpVel(nn).u(:,tt)';...
-            interpVel(nn).v(:,tt)';interpVel(nn).w(:,tt)'];
+        
+        % Formulas obtained from "sph2cart" MATLAB help page.
+        Lidar(nn).LOSvel(:,tt) = [cos(Lidar(nn).phi(tt))*...
+            cos(Lidar(nn).theta(tt)), sin(Lidar(nn).phi(tt))*...
+            cos(Lidar(nn).theta(tt)), sin(Lidar(nn).theta(tt))]*...
+            [interpVel(nn).u(:,tt)';interpVel(nn).v(:,tt)';interpVel(nn).w(:,tt)'];
     end
-    
+
 %% Calculate and apply weighting function
 
     WeightFunc = WeightingFunction(probe(nn).LengthDiscr,weightingFuncType);
@@ -137,7 +98,56 @@ for nn = 1:nLidars
     
 end % end of large for-loop
 
-%% Plot the beams of all LIDARs
+%% Reconstruct 2D velocity vector
+
+% call ReconstrcuctionVelocityFunction to reconstruct the velocity at
+% each point
+ReconstrVelVector = ReconstructVelocityFunction(Lidar,...
+        size(CartInputPoints,1),nLidars);
+
+% calculate the magnitude of the HORIZONTAL wind velocity vector
+HorMagnitude = sqrt(sum(ReconstrVelVector(1:2,:).^2));
+
+% calculate wind direction in xy-plane. 
+% WARNING: This is only the horizontal wind direction (it is derived only
+% from the u- and v-compoents of the wind speed.
+HorWindDir = atan2d(ReconstrVelVector(2,:),ReconstrVelVector(1,:));
+
+% convert the wind direction so that North is at 0 degrees and it increases
+% clockwise.
+% NOTE: North (or 0 degrees) coincides with the positive y-axis.
+% WARNING: The following 2 lines of code should stay in that order
+% otherwise the HorWindDir is first increased and therefore fulfills the
+% second condition as well.
+HorWindDir(HorWindDir>=90) = 450 - HorWindDir(HorWindDir>=90);
+HorWindDir(HorWindDir<90) = 90 - HorWindDir(HorWindDir<90);
+
+%% Plot the beams of all LIDARs at the 1st point
+% 
+% figure
+% plot3(Lidar(1).beam(1).CartX,Lidar(1).beam(1).CartY, Lidar(1).beam(1).CartZ,'.')
+% hold on
+% plot3(Lidar(2).beam(1).CartX,Lidar(2).beam(1).CartY, Lidar(2).beam(1).CartZ,'.')
+% plot3(Lidar(3).beam(1).CartX,Lidar(3).beam(1).CartY, Lidar(3).beam(1).CartZ,'.')
+% plot3([CartInputPoints(1,1) umag+CartInputPoints(1,1)],...
+%     [CartInputPoints(1,2) CartInputPoints(1,2)],...
+%     [CartInputPoints(1,3) CartInputPoints(1,3)])
+% plot3([CartInputPoints(1,1) CartInputPoints(1,1)],...
+%     [CartInputPoints(1,2) vmag+CartInputPoints(1,2)],...
+%     [CartInputPoints(1,3) CartInputPoints(1,3)])
+% plot3([CartInputPoints(1,1) CartInputPoints(1,1)],...
+%     [CartInputPoints(1,2) CartInputPoints(1,2)],...
+%     [CartInputPoints(1,3) wmag+CartInputPoints(1,3)])
+% hold off
+% grid on
+% grid minor
+% axis([-40 100 50 170 20 50])
+% xlabel('x axis')
+% ylabel('y axis')
+% zlabel('z axis')
+% legend('beam 1', 'beam 2','beam 3','u','v','w')
+
+%% Plot the beams of all Lidars at all focal points
 
 figure
 for ii = 1:size(CartInputPoints,1)
@@ -146,7 +156,7 @@ for ii = 1:size(CartInputPoints,1)
      % plot the beam of each LIDAR
      plot(Lidar(1).beam(ii).CartX, Lidar(1).beam(ii).CartY,'.')
      plot(Lidar(2).beam(ii).CartX, Lidar(2).beam(ii).CartY,'.')
-%      plot(Lidar(3).beam(ii).CartX, Lidar(3).beam(ii).CartY,'.')
+     plot(Lidar(3).beam(ii).CartX, Lidar(3).beam(ii).CartY,'.')
      
      % plot the focal points
      plot(CartInputPoints(ii,1),CartInputPoints(ii,2),'*')
@@ -154,7 +164,7 @@ for ii = 1:size(CartInputPoints,1)
      % plot the LIDAR position
      plot(Lidar(1).x,Lidar(1).y,'^')
      plot(Lidar(2).x,Lidar(2).y,'d')
-%      plot(Lidar(3).x,Lidar(3).y,'o')
+     plot(Lidar(3).x,Lidar(3).y,'o')
 end
 hold off
 grid on

@@ -60,6 +60,8 @@ for nn = 1:nLidars
         probe(nn).phiVector = -[-phiLidar:phiStep:phiLidar] + phiOffset;
         probe(nn).phiVector = deg2rad(probe(nn).phiVector);
     end
+    
+    % call calculateRangeGates function for all LIDARs
     [Lidar(nn).scan,probe(nn).Points,probe(nn).LengthDiscr,probe(nn).r] = ...
         calculateRangeGates(probe(nn).RadialDist2MeasurePoint,probe(nn).Length...
         ,probe(nn).PointsPerLength,probe(nn).RangeGateGap,probe(nn).FirstGap...
@@ -72,7 +74,7 @@ for nn = 1:nLidars
     else
         % Adjust the cartesian coordinates to the position of the 2nd LIDAR
         % otherwise all the points will rotate about point (0,0,0).
-        for tt = 1:length(probe(nn).phiVector);
+        for tt = 1:length(probe(nn).phiVector)
             Lidar(nn).scan(tt).CartX = Lidar(nn).scan(tt).CartX + Lidar(nn).x;
             Lidar(nn).scan(tt).CartY = Lidar(nn).scan(tt).CartY + Lidar(nn).y;
 
@@ -148,7 +150,8 @@ for nn = 1:nLidars
     for ii = 1:probe(nn).NRangeGates
         for tt = 1:length(probe(nn).phiVector)
             Lidar(nn).LidarMeas(ii,tt) = WeightFunc*...
-                Lidar(nn).LOSvel(probe(nn).Points*(ii-1)+1:probe(nn).Points*ii,tt)/sum(WeightFunc);
+                Lidar(nn).LOSvel(probe(nn).Points*(ii-1)+1:...
+                probe(nn).Points*ii,tt)/sum(WeightFunc);
         end
     end
 
@@ -166,10 +169,6 @@ for nn = 1:nLidars
     %     axis([-50 50 30 105 18 70 ])
     %     hold off
     % end
-
-%% Reconstruct 2D velocity 
-
-
 end % end of large for-loop
 
 %% Visualize the PPI scans of all Lidars
