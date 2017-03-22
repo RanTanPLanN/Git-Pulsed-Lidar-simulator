@@ -1,4 +1,4 @@
-function [phi,theta,r] = CalcPhiThetaR(LidarX,LidarY,L1X,measurePointX,measurePointY,measurePointZ)
+function [phi,theta,r] = CalcPhiThetaR(LidarX,LidarY,LidarZ,measurePointX,measurePointY,measurePointZ)
 %
 % PURPOSE: Calculate the azimuthal angle offset, theta angle and focus 
 % distance of an additional LIDAR. 
@@ -17,7 +17,7 @@ function [phi,theta,r] = CalcPhiThetaR(LidarX,LidarY,L1X,measurePointX,measurePo
 %
 % 1. LidarX: x-coordinate of the examined LIDAR position
 % 2. LidarY: y-coordinate of the examined LIDAR position
-% 3. L1X: x-coordinate of the 1st LIDAR position
+% 3. LidarZ: z-coordinate of the examined LIDAR position
 % 4. measurePointX: x-coordinate of the focus point(s).
 % 5. measurePointY: y-coordinate of the focus point(s).
 % 6. measurePointZ: z-coordinate of the focus point(s).
@@ -36,7 +36,7 @@ function [phi,theta,r] = CalcPhiThetaR(LidarX,LidarY,L1X,measurePointX,measurePo
 %
 %
 % Created: February 14, 2017
-% Last edited: February 14, 2017
+% Last edited: February 25, 2017
 % Author: Nikolaos Frouzakis
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -48,7 +48,7 @@ hypotenuse = sqrt((LidarY - measurePointY).^2 ...
 
 % calculate the necessary elevation angle theta to point at each
 % measurement point
-theta = atan(measurePointZ./hypotenuse);
+theta = atan((measurePointZ - LidarZ)./hypotenuse);
 
 % calculate the radial distances between the LIDAR and the points
 r = hypotenuse./cos(theta);
@@ -63,17 +63,17 @@ phi = atand(abs((LidarX - measurePointX)./(LidarY - measurePointY)));
 % The offset also depends on the position of the LIDAR relatively to the
 % measuring point:
 for ii = 1:length(phi)
-    if (LidarY >= measurePointY(ii) && LidarX > L1X)
+    if (LidarY >= measurePointY(ii) && LidarX > measurePointX(ii))
         phi(ii) = 270 - phi(ii);
-    elseif (LidarY < measurePointY(ii) && LidarX > L1X)
+    elseif (LidarY < measurePointY(ii) && LidarX >= measurePointX(ii))
         phi(ii) = 90 + phi(ii);
-    elseif (LidarY >= measurePointY(ii) && LidarX < L1X)
+    elseif (LidarY >= measurePointY(ii) && LidarX <= measurePointX(ii))
         phi(ii) = 270 + phi(ii);
     % In the ast check an 'elseif' is used instead of 'else' to include the 
     % case when we give a point in cartesian coordinates in the PPI mode
     % because then this function will be also called at the very beginning 
     % in order to calculate the phi, theta and r of LIDAR 1.
-    elseif (LidarY < measurePointY(ii) && LidarX < L1X)
+    elseif (LidarY < measurePointY(ii) && LidarX < measurePointX(ii))
         phi(ii) = 90 - phi(ii);
     end
 end
