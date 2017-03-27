@@ -9,34 +9,31 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %
 % Created: February 13, 2017
-% Last edited: February 23, 2017
+% Last edited: February 25, 2017
 % Author: Nikolaos Frouzakis
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+% pre-allocate structures to decrease computational time
+probe(nLidars).Points = [];
+probe(nLidars).LengthDiscr = [];
+probe(nLidars).r = [];
+Lidar(nLidars).phi = [];
+
 % include large for-loop to run this script for all the LIDARs
 for nn = 1:nLidars
-    if (nn == 1)
-        % convert the points of interest from cartesian to spherical. 
-        % WARNING: At this point this can only be done for the 1st Lidar because it
-        % is located at (x,y,z) = (0,0,0). For the rest the process will be done
-        % manually.
-        [Lidar(nn).phi, Lidar(nn).theta, Lidar(nn).r] = ...
-            cart2sph(CartInputPoints(:,1),CartInputPoints(:,2),CartInputPoints(:,3));
-    else
-        [Lidar(nn).phi,Lidar(nn).theta,Lidar(nn).r] = CalcPhiThetaR(Lidar(nn).x...
-            ,Lidar(nn).y,Lidar(1).x,CartInputPoints(:,1),CartInputPoints(:,2)...
-            ,CartInputPoints(:,3));
 
-        Lidar(nn).phi = deg2rad(Lidar(nn).phi);
-    end
+    [Lidar(nn).phi,Lidar(nn).theta,Lidar(nn).r] = CalcPhiThetaR(Lidar(nn).x...
+        ,Lidar(nn).y,Lidar(nn).z,CartInputPoints(:,1),CartInputPoints(:,2)...
+        ,CartInputPoints(:,3));
+
+    Lidar(nn).phi = deg2rad(Lidar(nn).phi);
+
     % In Staring mode the Range Gates are named 'beams' instead of 'scans'
     % that was the name in the PPI mode just to avoid confusion. Here, the
     % LIDAR is NOT scanning, rather sending a single beam (range gate) at 
     % the focal points to obtain a measurement at those points.
 
-    % probe(nLidars).Points = [];
-    % probe(nLidars).LengthDiscr = [];
-    % probe(nLidars).r = [];
+
     for ii = 1:size(CartInputPoints,1)
         [Lidar(nn).beam(ii),probe(nn).Points,probe(nn).LengthDiscr,probe(nn).r(ii,:)]...
             = calculateRangeGates(Lidar(nn).r(ii),probe(nn).Length...
@@ -44,21 +41,18 @@ for nn = 1:nLidars
             ,Lidar(nn).phi(ii),Lidar(nn).theta(ii),operationMode);
     end
     
-    % since the cartesian coordinates of Lidars 2 and 3 are calculated
+    % since the cartesian coordinates of the Lidars are calculated
     % w.r.t point (0,0,0), the beam coordinates have to be shifted
     % according to the coordinates of the respective Lidar.
-    if (nn > 1)
-        for ii = 1:size(CartInputPoints,1);
-            Lidar(nn).beam(ii).CartX = Lidar(nn).beam(ii).CartX + Lidar(nn).x;
-            Lidar(nn).beam(ii).CartY = Lidar(nn).beam(ii).CartY + Lidar(nn).y;
+    for ii = 1:size(CartInputPoints,1);
+        Lidar(nn).beam(ii).CartX = Lidar(nn).beam(ii).CartX + Lidar(nn).x;
+        Lidar(nn).beam(ii).CartY = Lidar(nn).beam(ii).CartY + Lidar(nn).y;
 
-            % the z-coordinate does not need to be adjusted since we assumed
-            % ground based LIDARs (z=0). However, it is good to have in case
-            % something changes.
-            Lidar(nn).beam(ii).CartZ = Lidar(nn).beam(ii).CartZ + Lidar(nn).z;
-        end
-    end
-    
+        % the z-coordinate does not need to be adjusted since we assumed
+        % ground based LIDARs (z=0). However, it is good to have in case
+        % something changes.
+        Lidar(nn).beam(ii).CartZ = Lidar(nn).beam(ii).CartZ + Lidar(nn).z;
+    end  
     
 %% Interpolate the grid points and calculate the LOS velocity
 
@@ -73,29 +67,34 @@ for nn = 1:nLidars
     Lidar(nn).LOSvel = nan(probe(nn).Points,length(Lidar(nn).phi));
     for tt = 1:length(Lidar(nn).phi)
         
-        % Formulas obtained from "sph2cart" MATLAB help page.
-        Lidar(nn).LOSvel(:,tt) = [cos(Lidar(nn).phi(tt))*...
-            cos(Lidar(nn).theta(tt)), sin(Lidar(nn).phi(tt))*...
-            cos(Lidar(nn).theta(tt)), sin(Lidar(nn).theta(tt))]*...
-            [interpVel(nn).u(:,tt)';interpVel(nn).v(:,tt)';interpVel(nn).w(:,tt)'];
+    % The formulas are from the paper:
+    % "3D Turbulence Measurements Using Three Synchronous Wind Lidars:
+    % Validation against Sonic Anemometry" by Carbajo F. et al, 2014.
+    %
+    % Be aware that the formulas are adapted to the MATLAB convention for
+    % angles (more specifically the phi convention is different). 
+    %
+    % The formulas end up being the same as in "sph2cart" MATLAB help page.
+    % Essentially, they are the same in reverse order.The system of 
+    % equations shown in the MATLAB page is solved for 'r' which is the 
+    % equivalent of the LOS velocity of the Lidar.
+    Lidar(nn).LOSvel(:,tt) = [cos(Lidar(nn).phi(tt))*...
+        cos(Lidar(nn).theta(tt)), sin(Lidar(nn).phi(tt))*...
+        cos(Lidar(nn).theta(tt)), sin(Lidar(nn).theta(tt))]*...
+        [interpVel(nn).u(:,tt)';interpVel(nn).v(:,tt)';interpVel(nn).w(:,tt)'];
     end
 
 %% Calculate and apply weighting function
-
-    WeightFunc = WeightingFunction(probe(nn).LengthDiscr,weightingFuncType);
-% 
-%     % preallocate matrix with LIDAR measurements
-% %     Lidar(nn).LidarMeas = nan(probe(nn).NRangeGates,length(probe(nn).phiVector));
-% 
-%     % apply the ranging function to the points of each range gate. For each
-%     % range gate one value is returned and that corresponds to the final
-%     % measurement that the LIDAR returns. 
-% %     for ii = 1:probe(nn).NRangeGates
-% %         for tt = 1:length(Lidar(nn).phi)
-    Lidar(nn).LidarMeas = WeightFunc*Lidar(nn).LOSvel/sum(WeightFunc);
-%         end
-%     end
     
+    % call WeightingFunction to calculate the weighting function
+    probe(nn).WeightFunc = WeightingFunction(probe(nn).LengthDiscr,weightingFuncType);
+
+    % apply the ranging function to the points of each range gate. For each
+    % range gate one value is returned and that corresponds to the final
+    % measurement that the LIDAR returns. 
+    Lidar(nn).LidarMeas = probe(nn).WeightFunc*Lidar(nn).LOSvel/...
+        sum(probe(nn).WeightFunc);
+   
 end % end of large for-loop
 
 %% Reconstruct 2D velocity vector
@@ -110,7 +109,7 @@ HorMagnitude = sqrt(sum(ReconstrVelVector(1:2,:).^2));
 
 % calculate wind direction in xy-plane. 
 % WARNING: This is only the horizontal wind direction (it is derived only
-% from the u- and v-compoents of the wind speed.
+% from the u- and v-components of the wind speed.
 HorWindDir = atan2d(ReconstrVelVector(2,:),ReconstrVelVector(1,:));
 
 % convert the wind direction so that North is at 0 degrees and it increases
@@ -123,7 +122,7 @@ HorWindDir(HorWindDir>=90) = 450 - HorWindDir(HorWindDir>=90);
 HorWindDir(HorWindDir<90) = 90 - HorWindDir(HorWindDir<90);
 
 %% Plot the beams of all LIDARs at the 1st point
-% 
+
 % figure
 % plot3(Lidar(1).beam(1).CartX,Lidar(1).beam(1).CartY, Lidar(1).beam(1).CartZ,'.')
 % hold on
@@ -162,9 +161,9 @@ for ii = 1:size(CartInputPoints,1)
      plot(CartInputPoints(ii,1),CartInputPoints(ii,2),'*')
      
      % plot the LIDAR position
-     plot(Lidar(1).x,Lidar(1).y,'^')
-     plot(Lidar(2).x,Lidar(2).y,'d')
-     plot(Lidar(3).x,Lidar(3).y,'o')
+     plot(Lidar(1).x,Lidar(1).y,'^','LineWidth',1.2)
+     plot(Lidar(2).x,Lidar(2).y,'d','LineWidth',1.2)
+     plot(Lidar(3).x,Lidar(3).y,'o','LineWidth',1.2)
 end
 hold off
 grid on
@@ -174,3 +173,4 @@ ylabel('y axis')
 title('Staring mode in xy-plane')
 
 %% END of script
+
