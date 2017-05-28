@@ -33,7 +33,7 @@ clc
 
 % operational mode: 
 % Select 'p' for PPI or 's' for staring mode.
-operationMode = 's';
+operationMode = 'p';
 
 %% Selection of weighting function shape
 
@@ -52,21 +52,43 @@ nLidars = 3;
 % Dimensions of dummy domain. They will be erased once the real LES grid
 % will be implemented
 xDimension = 190;
-yDimension = 300;
-zDimension = 140;
+yDimension = 250;
+zDimension = 160;
 
 % Each dimension consists of 2 points per unit length
 pointsPerDimensionLength = 1;
+
 xVector = linspace(-xDimension/2,xDimension/2,xDimension*pointsPerDimensionLength);
 yVector = linspace(0,yDimension,yDimension*pointsPerDimensionLength);
 zVector = linspace(0,zDimension,zDimension*pointsPerDimensionLength);
 
+
+% % just for testing load the ainslie wake model
+% load('wake_ainslie.mat')
+% 
+% wake_ainslie.x(82,:) = [];
+% wake_ainslie.y(82,:) = [];
+% wake_ainslie.u(82,:) = [];
+% wake_ainslie.v(82,:) = [];
+% 
+% wake_ainslie.v = 50*wake_ainslie.v;
+% 
+% xVector = wake_ainslie.x(1,:);
+% yVector = wake_ainslie.y(:,1)';
+% zVector = linspace(0,zDimension,zDimension*pointsPerDimensionLength);
+
 % Create dummy domain to try out the interpolation
 [Domain.x, Domain.y, Domain.z] = meshgrid(xVector, yVector, zVector);
 
-% mean wind speed (m/s)
-meanWindSpeed = 8;
+% The user is asked to insert both rotor radius in order to normalize all 
+% dimensions w.r.t. that. However, the normalization is NOT implemented
+% yet.
 
+% Wind turbine rotor radius [in metres]
+R = 40;
+
+% mean wind speed (m/s)
+meanWindSpeed = 12;
 
 % create wind field with linear shear (in the x direction)
 maxWindSpeed = 25;
@@ -78,27 +100,63 @@ maxWindSpeed = 25;
 
 % create 3D grid where both u- and y- component increase with x and y
 % respectively.
-[uComp,vComp,wComp] = meshgrid(ones(length(xVector),1),...
-    meanWindSpeed*ones(length(yVector),1),linspace(0,maxWindSpeed,length(zVector)));
+% [uComp,vComp,wComp] = meshgrid(ones(length(xVector),1),...
+%     meanWindSpeed*ones(length(yVector),1),linspace(0,maxWindSpeed,length(zVector)));
 
-% umag = -5;
-% vmag = 10;
-% wmag = 0;
+% dummy probe length
+dummylength = 20;
+
+% dummy power law for wind speed = 12m/s at 100 metres and a = 0.3:
+shearExp = 0.3;
+
+uVerticalGrid = meanWindSpeed*(zVector/100).^shearExp;
+vVerticalGrid = linspace(1,3,length(zVector));
+
+zTrue = 3.5:5:140;
+
+uVerticalTrue = meanWindSpeed*(zTrue/100).^shearExp;
+vVerticalTrue = 1/70*zTrue + 1;
+
+%%
+
+% umag = 0;
+vmag = 1;
+wmag = 0.5;
+
+% repmat the v-component for all y's
+vmag = repmat(vVerticalGrid,length(xVector),1);
+vmag = repmat(vmag,[1,1,length(yVector)]);
+vmag = permute(vmag,[3 1 2]);
+
+% repmat the vertical velocity profile for all x's:
+umag = repmat(uVerticalGrid,length(xVector),1);
+
+% repmat again for all 
+umag = repmat(umag,[1,1,length(yVector)]);
+umag = permute(umag,[3 1 2]);
+
+% figure
+% surf(zVector,xVector,u)
+% xlabel('x axis')
+% ylabel('z axis')
+% colorbar
 
 % Create dummy laminar velocity field
 % uComp = meanWindSpeed*ones(size(Domain.x)) - 1.5*meanWindSpeed*rand(size(Domain.x));;
 % uComp = meanWindSpeed*rand(size(Domain.x));
 % uComp(:,1:length(xVector)/2,:) = 1;
-% uComp = umag*ones(size(Domain.x));
-% vComp = vmag*ones(size(Domain.x));
+
+uComp = umag.*ones(size(Domain.x));
+vComp = vmag.*ones(size(Domain.x));
+wComp = wmag.*ones(size(Domain.x));
+% uComp = repmat(wake_ainslie.u,1,1,length(zVector));
+% vComp = repmat(wake_ainslie.v,1,1,length(zVector));
 % wComp = wmag*ones(size(Domain.x));
 
 % the following plot causes the computer to run out of memory.
-
 % % plot wind field
 % figure
 % scatter3(Domain.x(:),Domain.y(:),Domain.z(:),vComp(:))
-
 %% Position of 1st LIDAR
 
 % Give the lidar position (we assume that this point is the origin of the
@@ -106,7 +164,7 @@ maxWindSpeed = 25;
 % x-dimension
 Lidar(1).x = 0;%xDimension/2;
 Lidar(1).y = 0;
-Lidar(1).z = 0;
+Lidar(1).z = 10;
 
 %% Information about the probe of the 1st LIDAR
 
@@ -114,26 +172,26 @@ Lidar(1).z = 0;
 probe(1).FirstGap = 40;
 
 % probe length in METRES
-probe(1).Length = 10;
+probe(1).Length = dummylength;
 
 % points per unit length for the probe
-probe(1).PointsPerLength = 5;
+probe(1).PointsPerLength = 1;
 
 %% Information about additional LIDARs 
 
 if (nLidars > 1)
     
     % position of second LIDAR in cartesian coordinates
-    Lidar(2).x = Lidar(1).x + xDimension/2;
-    Lidar(2).y = 155;
-    Lidar(2).z = 0; 
+    Lidar(2).x = xDimension/2;
+    Lidar(2).y = 160;
+    Lidar(2).z = 20; 
 
     % FirstGap, PointsPerLength and NRgates will remain the same.
     probe(2).FirstGap = probe(1).FirstGap;
     probe(2).PointsPerLength = probe(1).PointsPerLength;
 
     % change the probe length if needed 
-    probe(2).Length = 15;
+    probe(2).Length = dummylength;
     
 %     % RangeGateGap is again twice the Length
 %     probe(2).RangeGateGap = 2*probe(2).Length;
@@ -141,16 +199,16 @@ if (nLidars > 1)
     % check if there is a 3rd LIDAR and assign the ncessary values
     if nLidars == 3
         % position of 3rd LIDAR in cartesian coordinates
-        Lidar(3).x = Lidar(1).x - xDimension/2;
-        Lidar(3).y = 180;
-        Lidar(3).z = 0; 
+        Lidar(3).x = -xDimension/2;
+        Lidar(3).y = yDimension;
+        Lidar(3).z = 20; 
 
         % FirstGap, PointsPerLength and NRgates will remain the same.
         probe(3).FirstGap = probe(1).FirstGap;
         probe(3).PointsPerLength = probe(1).PointsPerLength;
 
         % change the probe length if needed 
-        probe(3).Length = 12;
+        probe(3).Length = dummylength;
 
 %         % RangeGateGap is again twice the Length
 %         probe(3).RangeGateGap = 2*probe(3).Length;  
@@ -160,14 +218,20 @@ end
 %% 
 if (operationMode == 'p')
     
+    focalPoint = [0 150 30];
     % Distance between range gates (should be at least equal to the
     % probeLength). Now I put it twice the probeLength. It is subject to change
     % in the future.
     probe(1).RangeGateGap = 2*probe(1).Length;
-    
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% This part was used when the input was radial distance and elevation
+% angle. After the update, the input is a focal point in cartesian
+% coordinates so this part is not used anymore
+
     % Radial distance to the point where we want to measure. The distance
     % should be larger that FirstGap + Length/2
-    probe(1).RadialDist2MeasurePoint = 57;
+%     probe(1).RadialDist2MeasurePoint = 57;
 
     % Inclination angle theta. The value must be in DEGREES. This angle also
     % corresponds to the point we want to measure.
@@ -175,15 +239,16 @@ if (operationMode == 'p')
     % inclination angle should be as small as possible to ensure small
     % contribution of the w-component in the reconstructed velocity.
     thetaLidar = nan(1,nLidars);
-    thetaLidar(1) = 30;
+%     thetaLidar(1) = 30;
 
     % convert thetaLidar to radians
-    thetaLidar(1) = deg2rad(thetaLidar(1));
+%     thetaLidar(1) = deg2rad(thetaLidar(1));
 
     % Here it is assumed that the LIDAR is facing directly at the point we want
     % to measure, therefore the azimuthal angle of the point of interest is 0.
-    phiMeasurePoint = 0;
+%     phiMeasurePoint = 0;
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     % azimuthial angle phi. The value must be in DEGREES. The lidar will scan
     % from -phi to +phi.
     phiLidar = 25;
@@ -217,15 +282,32 @@ else
     
 %     CartInputPoints = [60 160 0; 60 40 0; -30 200 0; -40 50 0; 30 130 0];
 %     CartInputPoints = [-80 175 0; -50 145 0; 0 95 0; 50 45 0; 80 15 0];
-%     CartInputPoints = [-20 20; 60 40;-20.3370303202505,115.337030320250;-17.8781412223807,112.878141222381;-15.5346290269695,110.534629026969;-13.2972275291713,108.297227529171;-11.1576149354150,106.157614935415;-9.10829564822498,104.108295648225;-7.14249934299797,102.142499342998;-5.25409445438666,100.254094454387;-3.43751372617243,98.4375137261724;-1.68768990505206,96.6876899050521;-3.26228962580660e-43,95;1.62978319666399,93.3702168033360;3.20553340846107,91.7944665915389;4.73080789585260,90.2691921041474;6.20887995372924,88.7911200462708;7.64276751907920,87.3572324809208;9.03525842323716,85.9647415767628;10.3889327409309,84.6110672590691;11.7061826201173,83.2938173798827;12.9892299197454,82.0107700802546;14.2401419350388,80.7598580649612];
 %     CartInputPoints = [CartInputPoints zeros(size(CartInputPoints,1),1)];
-    CartInputPoints = [80 150 130; -80 150 30; -80 70 100; 80 70 10];
-
+%     CartInputPoints = [repmat([50 80],length(zTrue),1) zTrue'];
+%     CartInputPoints = [50 -50 20; 50 0 20; 50 50 20; 0 50 20; -50 50 20; -50 0 20; -50 -50 20; 0 -50 20];
+%     CartInputPoints = [repmat([50 80],length(zVector(6:10:end-6)),1) zVector(6:10:end-6)'];%; repmat([-50 150],10,1) linspace(1,zDimension-10,10)'];
+%     CartInputPoints = [xVector(8:10:end-5)' repmat([79 89],length(xVector(8:10:end-5)),1)];
+%     CartInputPoints = [xVector(10:10:end-5)' repmat([yVector(80) zVector(51)],length(xVector(10:10:end-5)),1)];
+%     CartInputPoints = [linspace(224,974,31)' -4*ones(31,1) 50*ones(31,1)];
+%         CartInputPoints = [(-87.5)' repmat([-1 50],length((220:25:970)),1)];
+    CartInputPoints = [0 150 20];
     % call 'StaringMode' script
     StaringMode
-end 
- 
-    
+end     
+
+%%
+% 
+% figure
+% quiver3(Domain.x,Domain.y,Domain.z,uComp,vComp,wComp,0.2)
+% axis([-1 6 4 7 0 zDimension])
+% view([70 50])
+% xlabel('x dimension')
+% ylabel('y dimension')
+% zlabel('Height')
+
+
+%%
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%% End of User Input %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

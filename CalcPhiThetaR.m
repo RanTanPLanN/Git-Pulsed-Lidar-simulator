@@ -36,7 +36,7 @@ function [phi,theta,r] = CalcPhiThetaR(LidarX,LidarY,LidarZ,measurePointX,measur
 %
 %
 % Created: February 14, 2017
-% Last edited: February 25, 2017
+% Last edited: March 22, 2017
 % Author: Nikolaos Frouzakis
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 

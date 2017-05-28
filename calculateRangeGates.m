@@ -7,8 +7,8 @@ function [scan,Points,LengthDiscr,r] = calculateRangeGates(RadialDist2MeasurePoi
 % length etc). 
 %
 % When the LIDARs operate in PPI mode this function returns the full PPI
-% scan of each LIDAR, thus in total NRangeGates x length(phiVector) beams.
-% When they operate in Staring mode it returns 1 beam per focus point
+% scan of each LIDAR, thus in total it returns NRangeGates x length(phiVector)
+% beams. When they operate in Staring mode it returns 1 beam per focus point
 % because each LIDAR sends only one beam for each point.
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

@@ -153,17 +153,17 @@ for ii = 1:size(CartInputPoints,1)
      hold on
      
      % plot the beam of each LIDAR
-     plot(Lidar(1).beam(ii).CartX, Lidar(1).beam(ii).CartY,'.')
-     plot(Lidar(2).beam(ii).CartX, Lidar(2).beam(ii).CartY,'.')
-     plot(Lidar(3).beam(ii).CartX, Lidar(3).beam(ii).CartY,'.')
+     plot(Lidar(1).beam(ii).CartX/R, Lidar(1).beam(ii).CartY/R,'b.')
+     plot(Lidar(2).beam(ii).CartX/R, Lidar(2).beam(ii).CartY/R,'r.')
+     plot(Lidar(3).beam(ii).CartX/R, Lidar(3).beam(ii).CartY/R,'g.')
      
      % plot the focal points
      plot(CartInputPoints(ii,1),CartInputPoints(ii,2),'*')
      
      % plot the LIDAR position
-     plot(Lidar(1).x,Lidar(1).y,'^','LineWidth',1.2)
-     plot(Lidar(2).x,Lidar(2).y,'d','LineWidth',1.2)
-     plot(Lidar(3).x,Lidar(3).y,'o','LineWidth',1.2)
+     plot(Lidar(1).x/R,Lidar(1).y/R,'b^')%,'LineWidth',1.2)
+     plot(Lidar(2).x/R,Lidar(2).y/R,'rd')%,'LineWidth',1.2)
+     plot(Lidar(3).x/R,Lidar(3).y/R,'go')%,'LineWidth',1.2)
 end
 hold off
 grid on
@@ -171,6 +171,7 @@ grid minor
 xlabel('x axis')
 ylabel('y axis')
 title('Staring mode in xy-plane')
-
+axis([(Lidar(3).x-20)/R (Lidar(2).x+20)/R (Lidar(1).y-20)/R (Lidar(3).y+20)/R])
+enhance_plot()
 %% END of script
 

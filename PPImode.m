@@ -49,17 +49,17 @@
 % include large for-loop to run this script for all the LIDARs
 for nn = 1:nLidars
     
-    if (nn == 1)
-        probe(1).phiVector = (-phiLidar:phiStep:phiLidar) + phiMeasurePoint;
-        probe(1).phiVector = deg2rad(-probe(1).phiVector + 90);
-    else
+%     if (nn == 1)
+%         probe(1).phiVector = (-phiLidar:phiStep:phiLidar) + phiMeasurePoint;
+%         probe(1).phiVector = deg2rad(-probe(1).phiVector + 90);
+%     else
         [phiOffset,thetaLidar(nn),probe(nn).RadialDist2MeasurePoint] = ...
-            CalcPhiThetaR(Lidar(nn).x,Lidar(nn).y,Lidar(1).x,...
-            measurePoint.x,measurePoint.y,measurePoint.z);
+            CalcPhiThetaR(Lidar(nn).x,Lidar(nn).y,Lidar(nn).z,...
+            focalPoint(1),focalPoint(2),focalPoint(3));
 
         probe(nn).phiVector = -[-phiLidar:phiStep:phiLidar] + phiOffset;
         probe(nn).phiVector = deg2rad(probe(nn).phiVector);
-    end
+%     end
     
     % call calculateRangeGates function for all LIDARs
     [Lidar(nn).scan,probe(nn).Points,probe(nn).LengthDiscr,probe(nn).r] = ...
@@ -67,11 +67,11 @@ for nn = 1:nLidars
         ,probe(nn).PointsPerLength,probe(nn).RangeGateGap,probe(nn).FirstGap...
         ,probe(nn).NRangeGates,probe(nn).phiVector,thetaLidar(nn),operationMode);
     
-    if (nn == 1)
-        [measurePoint.x,measurePoint.y,measurePoint.z] = ...
-            sph2cart(probe(1).phiVector((length(probe(1).phiVector)+1)/2)...
-            ,thetaLidar(1),probe(1).RadialDist2MeasurePoint);
-    else
+%     if (nn == 1)
+%         [measurePoint.x,measurePoint.y,measurePoint.z] = ...
+%             sph2cart(probe(1).phiVector((length(probe(1).phiVector)+1)/2)...
+%             ,thetaLidar(1),probe(1).RadialDist2MeasurePoint);
+%     else
         % Adjust the cartesian coordinates to the position of the 2nd LIDAR
         % otherwise all the points will rotate about point (0,0,0).
         for tt = 1:length(probe(nn).phiVector)
@@ -83,17 +83,17 @@ for nn = 1:nLidars
             % something changes.
             Lidar(nn).scan(tt).CartZ = Lidar(nn).scan(tt).CartZ + Lidar(nn).z;
         end
-    end
+%     end
     
     % The following line is needed because, even though the user selects
-    % the number of RGs, after the call of 'calculateRangeGates' function a
+    % the number of RGs, after the call of 'calculateRangeGates' function 
     % and if the focal point is too far away from the LIDAR, there might be
     % room for more RGs before the one that encloses the focal point,
     % therefore the final number of RGs for that LIDAR will be larger than
     % the one that the user selected. However it can never be smaller than
     % the selected number.
-    % To sum up, if this command is neglected then the ending result
-    % included less points measurements than the actual number of RGs.
+    % To sum up, if this command is omitted then the ending result will
+    % include less measurement points than the actual number of RGs.
     probe(nn).NRangeGates = size(probe(nn).r,2)/probe(nn).Points;
     
 %% Plot the beam from the side and the front
@@ -114,7 +114,7 @@ for nn = 1:nLidars
         plot(Lidar(nn).scan(ii).CartX, Lidar(nn).scan(ii).CartZ,'r.')
         ylabel('z axis')
         xlabel('x axis')
-        axis([-100 100 18 80 ])
+        axis([-100 100 0 80 ])
         title('Front view')
         grid on
         drawnow
@@ -185,9 +185,10 @@ for ii = 1:length(probe(nn).phiVector)
     ylabel('y axis')
     xlabel('x axis')
     title('Top view')
-    axis([-100 150 -20 405])
+%     axis([-100 150 -20 405])
     grid on
-
+    enhance_plot()
+    
     subplot(1,2,2)
     hold on
     plot(Lidar(1).scan(ii).CartX, Lidar(1).scan(ii).CartZ,'.')
@@ -196,10 +197,34 @@ for ii = 1:length(probe(nn).phiVector)
 
     ylabel('z axis')
     xlabel('x axis')
-    axis([-100 100 18 80 ])
+    axis([-100 100 0 80 ])
     title('Front view')
     grid on
     drawnow
+    enhance_plot()
+end
+hold off
+
+%% visualize only top view
+figure
+for ii = 1:length(probe(nn).phiVector)
+    clf
+    plot(Lidar(1).scan(ii).CartX/R, Lidar(1).scan(ii).CartY/R,'b.')
+    hold on
+
+    plot(Lidar(2).scan(ii).CartX/R, Lidar(2).scan(ii).CartY/R,'r.')
+    plot(Lidar(3).scan(ii).CartX/R, Lidar(3).scan(ii).CartY/R,'g.')
+    
+    % plot the LIDAR position
+    plot(Lidar(1).x/R,Lidar(1).y/R,'b^')%,'LineWidth',1.2)
+    plot(Lidar(2).x/R,Lidar(2).y/R,'rd')%,'LineWidth',1.2)
+    plot(Lidar(3).x/R,Lidar(3).y/R,'go')%,'LineWidth',1.2)
+    ylabel('y axis')
+    xlabel('x axis')
+    title('Top view')
+%     axis([-100 150 -20 405])
+    grid on
+    enhance_plot()
 end
 hold off
 

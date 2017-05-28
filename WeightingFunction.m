@@ -12,8 +12,8 @@ function WeightFunc = WeightingFunction(probeLengthVec, FunctionShape)
 %
 % Outputs:
 %
-% 1. WeightFunc: A vector with the discretized range weighting function. This will be
-% applied on the probe points to obtain a single measurement.
+% 1. WeightFunc: A vector with the discretized range weighting function. 
+% This will be applied on the probe points to obtain a single measurement.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %
 % FUTURE WORK: Develop a generic range weighting function both for pulsed
